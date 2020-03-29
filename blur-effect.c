@@ -43,7 +43,7 @@ int main( int argc, char *argv[] )
 
    FREE_IMAGE_TYPE image_type = FreeImage_GetImageType(imagen);
 
-   printf( "%s",image_type == FIT_BITMAP ? "true" : "false" );
+   //printf( "%s",image_type == FIT_BITMAP ? "true" : "false" );
 
 // test pixel access avoiding scanline calculations to speed-up the image processing
 /* different image type
@@ -61,11 +61,11 @@ int main( int argc, char *argv[] )
       }
    }
    */
-   if((image_type == FIT_BITMAP) && (FreeImage_GetBPP(imagen) == 24)){
-      BYTE *bits = (BYTE*)FreeImage_GetBits(dib);
-      for(y = 0; y < height; y++){
+   if( ( image_type == FIT_BITMAP ) && ( FreeImage_GetBPP( imagen ) == 24 ) ){
+      BYTE *bits = (BYTE*)FreeImage_GetBits( imagen );
+      for( int y = 0; y < height; y++ ){
          BYTE *pixel = (BYTE*)bits;
-         for(x = 0; x < width; x++){
+         for( int x = 0; x < width; x++ ){
             pixel[FI_RGBA_RED] = 128;
             pixel[FI_RGBA_GREEN] = 128;
             pixel[FI_RGBA_BLUE] = 128;
