@@ -1,0 +1,3 @@
+#!/bin/bash
+SALIDA=$( { time -f "%E real" ./blur-effect -args; } 2>&1 )
+echo "mi salida es: $SALIDA"
