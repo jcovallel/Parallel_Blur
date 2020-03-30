@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
 /** FreeImage error handler @param fif Format / Plugin responsible for the error  @param message Error message */
 void FreeImageErrorHandler( FREE_IMAGE_FORMAT fif, const char *message ){
    printf("\n*** ");
@@ -14,47 +15,143 @@ void FreeImageErrorHandler( FREE_IMAGE_FORMAT fif, const char *message ){
    printf( " ***\n" );
 }
 
-void BlurFunc( BYTE *bits, unsigned height, unsigned width, unsigned pitch, int kernel ){
+void BlurFunc( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsigned pitch, int kernel ){
    int radio = ( kernel - 1 ) / 2;
    int sumRed, sumGreen, sumBlue;
-   sumRed = sumGreen = sumBlue = 0;
    BYTE *firstln = (BYTE*)bits;
+   BYTE *firstln2 = (BYTE*)bits2;
 
    for( int y = 0; y < height; y++ ){
       BYTE *pixel = (BYTE*)bits;
+      BYTE *pixel2 = (BYTE*)bits2;
       for( int x = 0; x < width; x++ ){
+
+         sumRed = sumGreen = sumBlue = 0;
 
          int h_init = x - radio;
          if ( h_init < 0 ) h_init = 0;
          int h_fin = x + radio;
          if ( h_fin >= width ) h_fin = width-1;
 
-         int v_init = x - radio;
+         int v_init = y - radio;
          if ( v_init < 0 ) v_init = 0;
-         int v_fin = x + radio;
-         if ( v_fin >= width ) v_fin = width-1;
+         int v_fin = y + radio;
+         if ( v_fin >= height ) v_fin = height-1;
          BYTE *vertical = (BYTE*)firstln;
-         BYTE *horizontal = (BYTE*)vertical;
          vertical += (pitch*v_init);
+         BYTE *horizontal = (BYTE*)vertical;
+         horizontal += (3*h_init);
+         int count=0;
 
          for(int ini_v = v_init; ini_v <= v_fin; ini_v++){
             horizontal = vertical;
+            horizontal += (3*h_init);
             for(int ini_h = h_init; ini_h <= h_fin; ini_h++){
                sumRed += horizontal[FI_RGBA_RED];
                sumGreen += horizontal[FI_RGBA_GREEN];
                sumBlue += horizontal[FI_RGBA_BLUE];
+               if(y==117 && x==104){
+                  if(count==0){
+                     printf("hini: %d, vini: %d\n", ini_h, ini_v);
+                     printf("hfin: %d, vfin: %d\n", h_fin, v_fin);
+                  }
+                  printf("x: %d, y: %d\n", ini_h, ini_v);
+                  printf("sumando red: %d, sumando green: %d, sumando blue: %d\n", horizontal[FI_RGBA_RED],horizontal[FI_RGBA_GREEN],horizontal[FI_RGBA_BLUE]);
+               }
                horizontal += 3;
+               count++;
             }
             vertical += pitch;
          }
-         pixel[FI_RGBA_RED]=sumRed/(kernel*kernel);
-         pixel[FI_RGBA_GREEN]=sumGreen/(kernel*kernel);
-         pixel[FI_RGBA_BLUE]=sumBlue/(kernel*kernel);
+         if(y==117 && x==104){
+            printf("original: %d, %d, %d\n", pixel[FI_RGBA_RED], pixel[FI_RGBA_GREEN], pixel[FI_RGBA_BLUE]);
+            printf("sumared: %d, count: %d\n", sumRed, count);
+            //pixel2[FI_RGBA_RED]=65;
+            //pixel2[FI_RGBA_GREEN]=67;
+            //pixel2[FI_RGBA_BLUE]=185;
+         }
+         pixel2[FI_RGBA_RED]=(int)(sumRed/count);
+         pixel2[FI_RGBA_GREEN]=(int)(sumGreen/count);
+         pixel2[FI_RGBA_BLUE]=(int)(sumBlue/count);
          pixel += 3;
+         pixel2 += 3;
       }
       // next line
       bits += pitch;
+      bits2 += pitch;
    }
+}
+
+void BlurFunc2( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsigned pitch, int kernel ){
+   int radio = ( kernel - 1 ) / 2;
+   int sumRed, sumGreen, sumBlue;
+   //barrido horizontal
+   for( int y = 0; y < height; y++ ){
+      BYTE *pixel = (BYTE*)bits;
+      BYTE *pixel2 = (BYTE*)bits2;
+      for( int x = 0; x < width; x++ ){
+
+         sumRed = sumGreen = sumBlue = 0;
+         int count = 0;
+         int h_init = x - radio;
+         if ( h_init < 0 ) h_init = 0;
+         int h_fin = x + radio;
+         if ( h_fin >= width ) h_fin = width-1;
+         BYTE *pixelAux = pixel-((x-h_init)*3);
+         for(int ini_h = h_init; ini_h <= h_fin; ini_h++){
+
+            sumRed += pixelAux[FI_RGBA_RED];
+            sumGreen += pixelAux[FI_RGBA_GREEN];
+            sumBlue += pixelAux[FI_RGBA_BLUE];
+            pixelAux += 3;
+            count++;
+         }
+
+         pixel2[FI_RGBA_RED]=(sumRed/count);
+         pixel2[FI_RGBA_GREEN]=(sumGreen/count);
+         pixel2[FI_RGBA_BLUE]=(sumBlue/count);
+         pixel += 3;
+         pixel2 += 3;
+      }
+      // next line
+      bits += pitch;
+      bits2 += pitch;
+   }
+//barrido vertical
+   BYTE *bits3 = (BYTE *)malloc(sizeof(bits2));
+   *bits3 = *bits2;
+   for( int x = 0; x < width; x++ ){
+      BYTE *pixel = (BYTE*)bits3;
+      BYTE *pixel2 = (BYTE*)bits2;
+      for( int y = 0; y < height; y++ ){
+
+         sumRed = sumGreen = sumBlue = 0;
+         int count = 0;
+         int v_init = y - radio;
+         if ( v_init < 0 ) v_init = 0;
+         int v_fin = y + radio;
+         if ( v_fin >= height ) v_fin = height-1;
+         BYTE *pixelAux = pixel-((x-v_init)*pitch);
+         for(int ini_v = v_init; ini_v <= v_fin; ini_v++){
+
+            sumRed += pixelAux[FI_RGBA_RED];
+            sumGreen += pixelAux[FI_RGBA_GREEN];
+            sumBlue += pixelAux[FI_RGBA_BLUE];
+            pixelAux += pitch;
+            count++;
+         }
+
+         pixel2[FI_RGBA_RED]=(sumRed/count);
+         pixel2[FI_RGBA_GREEN]=(sumGreen/count);
+         pixel2[FI_RGBA_BLUE]=(sumBlue/count);
+         pixel += pitch;
+         pixel2 += pitch;
+      }
+      // next line
+      bits3 += 3;
+      bits2 += 3;
+   }
+   free(bits3);
 }
 
 int main( int argc, char *argv[] )
@@ -72,7 +169,8 @@ int main( int argc, char *argv[] )
    //printf( "%s", FreeImage_GetFormatFromFIF( formato ) );
 
    FIBITMAP* imagen = FreeImage_Load( formato, argv[1], 0 );
-   if( !imagen ){
+   FIBITMAP* imagen2 = FreeImage_Load( formato, argv[1], 0 );
+   if( !imagen || !imagen2){
       FreeImage_SetOutputMessage( FreeImageErrorHandler );
    }
 
@@ -104,11 +202,13 @@ int main( int argc, char *argv[] )
    */
    if( ( image_type == FIT_BITMAP ) && ( FreeImage_GetBPP( imagen ) == 24 ) ){
       BYTE *bits = (BYTE*)FreeImage_GetBits( imagen );
-      //BlurFunc(bits, height, width, pitch, atoi(argv[3]));
+      BYTE *bits2 = (BYTE*)FreeImage_GetBits( imagen2 );
+
+      BlurFunc(bits, bits2, height, width, pitch, atoi(argv[3]));
    }
 
-   //if (FreeImage_Save(FIF_BMP, imagen, argv[2], 0)) {     // bitmap successfully saved!
-   //}
+   if (FreeImage_Save(FIF_BMP, imagen2, argv[2], 0)) {     // bitmap successfully saved!
+   }
 
    FreeImage_Unload( imagen );
 
