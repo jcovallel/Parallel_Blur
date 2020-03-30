@@ -50,25 +50,10 @@ void BlurFunc( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsigne
                sumRed += horizontal[FI_RGBA_RED];
                sumGreen += horizontal[FI_RGBA_GREEN];
                sumBlue += horizontal[FI_RGBA_BLUE];
-               if(y==117 && x==104){
-                  if(count==0){
-                     printf("hini: %d, vini: %d\n", ini_h, ini_v);
-                     printf("hfin: %d, vfin: %d\n", h_fin, v_fin);
-                  }
-                  printf("x: %d, y: %d\n", ini_h, ini_v);
-                  printf("sumando red: %d, sumando green: %d, sumando blue: %d\n", horizontal[FI_RGBA_RED],horizontal[FI_RGBA_GREEN],horizontal[FI_RGBA_BLUE]);
-               }
                horizontal += 3;
                count++;
             }
             vertical += pitch;
-         }
-         if(y==117 && x==104){
-            printf("original: %d, %d, %d\n", pixel[FI_RGBA_RED], pixel[FI_RGBA_GREEN], pixel[FI_RGBA_BLUE]);
-            printf("sumared: %d, count: %d\n", sumRed, count);
-            //pixel2[FI_RGBA_RED]=65;
-            //pixel2[FI_RGBA_GREEN]=67;
-            //pixel2[FI_RGBA_BLUE]=185;
          }
          pixel2[FI_RGBA_RED]=(int)(sumRed/count);
          pixel2[FI_RGBA_GREEN]=(int)(sumGreen/count);
