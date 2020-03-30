@@ -1,3 +1,21 @@
 #!/bin/bash
-SALIDA=$( { time -f "%E real" ./blur-effect -args; } 2>&1 )
-echo "mi salida es: $SALIDA"
+
+
+KERNEL=3
+HILOS=1
+declare -a ARR=("720p.png" "1080p.png" "4k.png")
+echo > results.txt
+for i in "${arr[@]}"
+do
+do
+while[$HILOS -lt 17]
+do
+while[$KERNEL -lt 16]
+do
+SALIDA=$( { time -f "%E real" ./blur-effect "$i" "BLUR$i" "$KERNEL" "$HILOS"; } 2>&1 )
+KERNEL=$KERNEL+2
+done
+HILOS=$HILOS*2
+done
+done
+exit

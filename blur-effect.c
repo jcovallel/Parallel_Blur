@@ -67,7 +67,14 @@ void BlurFunc( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsigne
    }
 }
 
-void BlurFunc2( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsigned pitch, int kernel ){
+void BlurFunc2( FIBITMAP* imagen, int kernel ){
+   unsigned width  = FreeImage_GetWidth(imagen);
+   unsigned height = FreeImage_GetHeight(imagen);
+   unsigned pitch  = FreeImage_GetPitch(imagen);
+   BYTE *bits, *recover=(BYTE*)FreeImage_GetBits( imagen );
+   bits= recover;
+   FIBITMAP *imagen2 = FreeImage_Clone(imagen);
+   BYTE *bits2 = (BYTE*)FreeImage_GetBits( imagen2 );
    int radio = ( kernel - 1 ) / 2;
    int sumRed, sumGreen, sumBlue;
    //barrido horizontal
@@ -82,7 +89,7 @@ void BlurFunc2( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsign
          if ( h_init < 0 ) h_init = 0;
          int h_fin = x + radio;
          if ( h_fin >= width ) h_fin = width-1;
-         BYTE *pixelAux = pixel-((x-h_init)*3);
+         BYTE *pixelAux = pixel2-((x-h_init)*3);
          for(int ini_h = h_init; ini_h <= h_fin; ini_h++){
 
             sumRed += pixelAux[FI_RGBA_RED];
@@ -92,9 +99,9 @@ void BlurFunc2( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsign
             count++;
          }
 
-         pixel2[FI_RGBA_RED]=(sumRed/count);
-         pixel2[FI_RGBA_GREEN]=(sumGreen/count);
-         pixel2[FI_RGBA_BLUE]=(sumBlue/count);
+         pixel[FI_RGBA_RED]=round(sumRed/count);
+         pixel[FI_RGBA_GREEN]=round(sumGreen/count);
+         pixel[FI_RGBA_BLUE]=round(sumBlue/count);
          pixel += 3;
          pixel2 += 3;
       }
@@ -102,12 +109,14 @@ void BlurFunc2( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsign
       bits += pitch;
       bits2 += pitch;
    }
+   FreeImage_Unload( imagen2 );
 //barrido vertical
-   BYTE *bits3 = (BYTE *)malloc(sizeof(bits2));
-   *bits3 = *bits2;
+   FIBITMAP *imagen3 = FreeImage_Clone(imagen);
+   BYTE *bits3 = (BYTE*)FreeImage_GetBits( imagen3 );
+   bits = recover;
    for( int x = 0; x < width; x++ ){
       BYTE *pixel = (BYTE*)bits3;
-      BYTE *pixel2 = (BYTE*)bits2;
+      BYTE *pixel2 = (BYTE*)bits;
       for( int y = 0; y < height; y++ ){
 
          sumRed = sumGreen = sumBlue = 0;
@@ -116,7 +125,7 @@ void BlurFunc2( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsign
          if ( v_init < 0 ) v_init = 0;
          int v_fin = y + radio;
          if ( v_fin >= height ) v_fin = height-1;
-         BYTE *pixelAux = pixel-((x-v_init)*pitch);
+         BYTE *pixelAux = pixel-((y-v_init)*pitch);
          for(int ini_v = v_init; ini_v <= v_fin; ini_v++){
 
             sumRed += pixelAux[FI_RGBA_RED];
@@ -126,17 +135,17 @@ void BlurFunc2( BYTE *bits, BYTE *bits2, unsigned height, unsigned width, unsign
             count++;
          }
 
-         pixel2[FI_RGBA_RED]=(sumRed/count);
-         pixel2[FI_RGBA_GREEN]=(sumGreen/count);
-         pixel2[FI_RGBA_BLUE]=(sumBlue/count);
+         pixel2[FI_RGBA_RED]=round(sumRed/count);
+         pixel2[FI_RGBA_GREEN]=round(sumGreen/count);
+         pixel2[FI_RGBA_BLUE]=round(sumBlue/count);
          pixel += pitch;
          pixel2 += pitch;
       }
       // next line
       bits3 += 3;
-      bits2 += 3;
+      bits += 3;
    }
-   free(bits3);
+   FreeImage_Unload( imagen3 );
 }
 
 int main( int argc, char *argv[] )
