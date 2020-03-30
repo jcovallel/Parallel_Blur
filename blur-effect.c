@@ -14,7 +14,48 @@ void FreeImageErrorHandler( FREE_IMAGE_FORMAT fif, const char *message ){
    printf( " ***\n" );
 }
 
+void BlurFunc( BYTE *bits, unsigned height, unsigned width, unsigned pitch, int kernel ){
+   int radio = ( kernel - 1 ) / 2;
+   int sumRed, sumGreen, sumBlue;
+   sumRed = sumGreen = sumBlue = 0;
+   BYTE *firstln = (BYTE*)bits;
 
+   for( int y = 0; y < height; y++ ){
+      BYTE *pixel = (BYTE*)bits;
+      for( int x = 0; x < width; x++ ){
+
+         int h_init = x - radio;
+         if ( h_init < 0 ) h_init = 0;
+         int h_fin = x + radio;
+         if ( h_fin >= width ) h_fin = width-1;
+
+         int v_init = x - radio;
+         if ( v_init < 0 ) v_init = 0;
+         int v_fin = x + radio;
+         if ( v_fin >= width ) v_fin = width-1;
+         BYTE *vertical = (BYTE*)firstln;
+         BYTE *horizontal = (BYTE*)vertical;
+         vertical += (pitch*v_init);
+
+         for(int ini_v = v_init; ini_v <= v_fin; ini_v++){
+            horizontal = vertical;
+            for(int ini_h = h_init; ini_h <= h_fin; ini_h++){
+               sumRed += horizontal[FI_RGBA_RED];
+               sumGreen += horizontal[FI_RGBA_GREEN];
+               sumBlue += horizontal[FI_RGBA_BLUE];
+               horizontal += 3;
+            }
+            vertical += pitch;
+         }
+         pixel[FI_RGBA_RED]=sumRed/(kernel*kernel);
+         pixel[FI_RGBA_GREEN]=sumGreen/(kernel*kernel);
+         pixel[FI_RGBA_BLUE]=sumBlue/(kernel*kernel);
+         pixel += 3;
+      }
+      // next line
+      bits += pitch;
+   }
+}
 
 int main( int argc, char *argv[] )
 {
@@ -63,20 +104,11 @@ int main( int argc, char *argv[] )
    */
    if( ( image_type == FIT_BITMAP ) && ( FreeImage_GetBPP( imagen ) == 24 ) ){
       BYTE *bits = (BYTE*)FreeImage_GetBits( imagen );
-      for( int y = 0; y < height; y++ ){
-         BYTE *pixel = (BYTE*)bits;
-         for( int x = 0; x < width; x++ ){
-            pixel[FI_RGBA_RED] = 128;
-            pixel[FI_RGBA_GREEN] = 128;
-            pixel[FI_RGBA_BLUE] = 128;
-            pixel += 3;
-         }
-         // next line
-         bits += pitch;
-      }
+      //BlurFunc(bits, height, width, pitch, atoi(argv[3]));
    }
 
-
+   //if (FreeImage_Save(FIF_BMP, imagen, argv[2], 0)) {     // bitmap successfully saved!
+   //}
 
    FreeImage_Unload( imagen );
 
