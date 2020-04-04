@@ -14,7 +14,7 @@ struct Blur_Params {
 void FreeImageErrorHandler( FREE_IMAGE_FORMAT fif, const char *message ){
    printf("\n*** ");
    if( fif != FIF_UNKNOWN ) printf( "%s Format\n", FreeImage_GetFormatFromFIF( fif ) );
-   printf( message );
+   printf( "%s", message );
    printf( " ***\n" );
 }
 
@@ -26,16 +26,15 @@ void *BlurFunc2( void *arg ){
    unsigned width_ini = params -> ini;
    unsigned width  = params -> width;
 
-   printf("width_ini: %d, width: %d\n",width_ini,width );
-
    unsigned height = FreeImage_GetHeight( imagen );
    unsigned pitch  = FreeImage_GetPitch( imagen );
    BYTE *pixelAuxDer, *pixelAuxIz, *pixel, *bits, *recover=(BYTE*)FreeImage_GetBits( imagen );
-   bits = recover;
+   bits = recover = recover + (3*width_ini);
    int radio = ( kernel - 1 ) / 2;
    int h_fin, v_fin;
    FIBITMAP* imagenAux = FreeImage_Clone( imagen );
    BYTE *bitsAux = (BYTE *)FreeImage_GetBits( imagenAux );
+   bitsAux += (3*width_ini);
    int sumRed, sumGreen, sumBlue, kernelCount;
 
    //barrido horizontal
@@ -89,6 +88,7 @@ void *BlurFunc2( void *arg ){
    FreeImage_Unload( imagenAux );
    imagenAux = FreeImage_Clone( imagen );
    bitsAux = (BYTE *)FreeImage_GetBits( imagenAux );
+   bitsAux += (3*width_ini);
    bits = recover;
    for( int x = width_ini; x < width; x++ ){
       pixel = bits;
@@ -159,30 +159,30 @@ int main( int argc, char *argv[] ){
    unsigned total_width  = FreeImage_GetWidth(imagen);
    unsigned total_height = FreeImage_GetHeight(imagen);
    int hilos = atoi(argv[4]);
-   printf("hilos: %d\n",hilos );
    int *retval;
 
    int block_width = total_width/hilos;
    pthread_t thread[hilos];
 
-   struct Blur_Params *blur_params;
-   blur_params = malloc(sizeof(*blur_params));
-   blur_params -> img = imagen;
-   blur_params -> kernel = atoi(argv[3]);
+   int tamano = sizeof( struct Blur_Params );
+   struct Blur_Params *blur_params = malloc( tamano * hilos );
 
    for( int i = 0; i < hilos-1; i++ ){
-      blur_params -> ini = block_width * i;
-      blur_params -> width = block_width * (i+1);
-      //printf("%u, %u\n", blur_params -> ini, blur_params -> width);
-      pthread_create(&thread[i], NULL, (void *) BlurFunc2, blur_params);
+      ( blur_params + ( tamano * i ) ) -> img = imagen;
+      ( blur_params + ( tamano * i ) ) -> kernel = atoi(argv[3]);
+      ( blur_params + ( tamano * i ) ) -> ini = block_width * i;
+      ( blur_params + ( tamano * i ) ) -> width = block_width * (i+1);
+      pthread_create( &thread[i], NULL, (void *) BlurFunc2, ( blur_params + ( tamano * i ) ) );
    }
-   blur_params -> ini = block_width * ( hilos - 1 );
-   blur_params -> width = block_width * hilos;
-   pthread_create(&thread[hilos - 1], NULL, (void *) BlurFunc2, blur_params);
-   //printf("%u, %u\n", blur_params -> ini, blur_params -> width);
+   ( blur_params + ( tamano * (hilos-1) ) ) -> img = imagen;
+   ( blur_params + ( tamano * (hilos-1) ) ) -> kernel = atoi(argv[3]);
+   ( blur_params + ( tamano * (hilos-1) ) ) -> ini = block_width * ( hilos - 1 );
+   ( blur_params + ( tamano * (hilos-1) ) ) -> width = ( block_width * hilos ) + total_width % hilos;
+
+   pthread_create( &thread[hilos - 1], NULL, (void *) BlurFunc2, ( blur_params + ( tamano * (hilos-1) ) ) );
 
    for( int i = 0; i < hilos; i++ ){
-      pthread_join(thread[i], NULL);
+      pthread_join( thread[i], NULL );
    }
 
    if (FreeImage_Save(FIF_BMP, imagen, argv[2], 0)) {     // bitmap successfully saved!
