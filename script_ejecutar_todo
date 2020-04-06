@@ -1,18 +1,18 @@
 #!/bin/bash
-
-
+sudo apt-get update
+sudo apt-get install libfreeimage-dev
 KERNEL=3
 HILOS=1
 declare -a ARR=("720p.png" "1080p.png" "4k.png")
-echo > results.txt
+echo -e "Resultados:\n"> results.txt
 for i in "${arr[@]}"
-do
 do
 while[$HILOS -lt 17]
 do
 while[$KERNEL -lt 16]
 do
 SALIDA=$( { time -f "%E real" ./blur-effect "$i" "BLUR$i" "$KERNEL" "$HILOS"; } 2>&1 )
+echo "Imagen: $i, Hilos: $HILOS, Kernel: $KERNEL, Tiempo: $SALIDA" >> results.txt
 KERNEL=$KERNEL+2
 done
 HILOS=$HILOS*2
