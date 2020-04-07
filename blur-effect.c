@@ -4,7 +4,8 @@
 #include <pthread.h>
 
 struct Blur_Params {
-   FIBITMAP* img;
+   FIBITMAP *img;
+   FIBITMAP *imgAux;
    int kernel;
    unsigned ini;
    unsigned width;
@@ -32,7 +33,8 @@ void *BlurFunc2( void *arg ){
    bits = recover = recover + ( 3 * width_ini );
    int radio = ( kernel - 1 ) / 2;
    int kernelLimit;
-   FIBITMAP *imagenAux = FreeImage_Clone( imagen );
+   FIBITMAP *imagenAux = params -> imgAux;
+   //FIBITMAP *imagenAux = FreeImage_Clone(imagen);
    BYTE *bitsAux = (BYTE *)FreeImage_GetBits( imagenAux );
    bitsAux += ( 3 * width_ini );
    int sumRed, sumGreen, sumBlue, kernelCount, auxCount;
@@ -99,7 +101,7 @@ void *BlurFunc2( void *arg ){
       bits += pitch;
       bitsAux += pitch;
    }
-   FreeImage_Unload( imagenAux );
+   //FreeImage_Unload( imagenAux );
    imagenAux = FreeImage_Clone( imagen );
    bitsAux = (BYTE *)FreeImage_GetBits( imagenAux );
    bitsAux += ( 3 * width_ini );
@@ -159,7 +161,7 @@ void *BlurFunc2( void *arg ){
          pixel[FI_RGBA_RED]=sumRed/kernelCount;
          pixel[FI_RGBA_GREEN]=sumGreen/kernelCount;
          pixel[FI_RGBA_BLUE]=sumBlue/kernelCount;
-         pixel += 3;
+         pixel += pitch;
       }
       // next line
       bits += 3;
@@ -191,25 +193,27 @@ int main( int argc, char *argv[] ){
    int hilos = atoi(argv[4]);
    int *retval;
 
-   int block_width = total_width/hilos;
+   int block_width = total_width / hilos;
    pthread_t thread[hilos];
-
+   FIBITMAP *imagenAux = FreeImage_Clone( imagen );
    struct Blur_Params *params = malloc( sizeof( struct Blur_Params ) * hilos );
 
    for( int i = 0; i < hilos - 1; i++ ){
       params[i].img = imagen;
+      params[i].imgAux = imagenAux;
       params[i].kernel = atoi(argv[3]);
       params[i].ini = block_width * i;
       params[i].width = block_width * (i+1);
-      pthread_create( &thread[i], NULL, (void *) BlurFunc2, (void *)&params[i] );
+      pthread_create( &thread[i], NULL, (void *)BlurFunc2, (void *)&params[i] );
    }
    params[hilos - 1].img = imagen;
+   params[hilos - 1].imgAux = imagenAux;
    params[hilos - 1].kernel = atoi(argv[3]);
    params[hilos - 1].ini = block_width * ( hilos - 1 );
    //params[hilos-1].width = ( block_width * hilos ) + total_width % hilos;
    params[hilos - 1].width = total_width;
 
-   pthread_create( &thread[hilos - 1], NULL, (void *) BlurFunc2, (void *)&params[hilos - 1] );
+   pthread_create( &thread[hilos - 1], NULL, (void *)BlurFunc2, (void *)&params[hilos - 1] );
 
    for( int i = 0; i < hilos; i++ ){
       pthread_join( thread[i], NULL );
@@ -222,5 +226,6 @@ int main( int argc, char *argv[] ){
 
    free( params );
    FreeImage_Unload( imagen );
+   FreeImage_Unload( imagenAux );
    FreeImage_DeInitialise( );
 }
