@@ -21,6 +21,7 @@ void FreeImageErrorHandler( FREE_IMAGE_FORMAT fif, const char *message ){
 
 void *BlurFunc2( void *arg ){
 
+   // Inicialización de variables
    struct Blur_Params *params = (struct Blur_Params *)arg;
    FIBITMAP *imagen = params -> img;
    int kernel = params -> kernel;
@@ -30,14 +31,20 @@ void *BlurFunc2( void *arg ){
    unsigned height = FreeImage_GetHeight( imagen );
    unsigned pitch  = FreeImage_GetPitch( imagen );
    BYTE *pixelAuxDer, *pixelAuxIz, *pixel, *bits, *recover = (BYTE *)FreeImage_GetBits( imagen );
+   //se mueven los apuntadores a la columna inicial del hilo
    bits = recover = recover + ( 3 * width_ini );
    int radio = ( kernel - 1 ) / 2;
    int kernelLimit;
+   // se inicializan los apuntadores a la imagen clonada para el kernel
    FIBITMAP *imagenAux = params -> imgAux;
-   //FIBITMAP *imagenAux = FreeImage_Clone(imagen);
    BYTE *bitsAux = (BYTE *)FreeImage_GetBits( imagenAux );
    bitsAux += ( 3 * width_ini );
    int sumRed, sumGreen, sumBlue, kernelCount, auxCount;
+
+   /** Haremos primero un barrido horizontal y luego uno vertical de modo que
+    * agilicemos la convolución del kernel con la imagen (si se hacen al Tiempo
+    * es más lento O(K*K*h*w) vs O(2K*h*w))
+    */
 
    //barrido horizontal
    for( int y = 0; y < height; y++ ){
@@ -45,10 +52,16 @@ void *BlurFunc2( void *arg ){
       kernelCount = 0;
       sumRed = sumGreen = sumBlue = 0;
 
-      //Se calcula el blur para el primer pixel (borde izquierdo)
+      /** Se calcula el blur para el primer pixel (borde izquierdo)
+       * El kernel de maneja sobre la imagen clonada y haciendo uso de dos apuntadores
+       * uno izquierdo y uno derecho, que delimitan el inicio y el fin del vector kernel
+       * (no matriz kernel ya que lo hacemos en dos barridos). El kernel se va moviento
+       * sobre la imagen junto con el pixel que se está calculando.
+       */
       pixelAuxDer = pixelAuxIz = bitsAux;
       kernelLimit = width_ini - radio - 1;
 
+      // movemos el apuntador izquierdo del kernel
       auxCount = width_ini;
       while( auxCount >= 0 && auxCount > kernelLimit ){
          sumRed += pixelAuxIz[FI_RGBA_RED];
@@ -61,6 +74,7 @@ void *BlurFunc2( void *arg ){
       pixelAuxDer += 3;
       auxCount = width_ini + 1;
       kernelLimit = width_ini + radio + 1;
+      // movemos el apuntador derecho del kernel
       while( auxCount < total_width && auxCount < kernelLimit ){
          sumRed += pixelAuxDer[FI_RGBA_RED];
          sumGreen += pixelAuxDer[FI_RGBA_GREEN];
@@ -97,11 +111,11 @@ void *BlurFunc2( void *arg ){
          pixel[FI_RGBA_BLUE] = sumBlue / kernelCount;
          pixel += 3;
       }
-      // next line
+      // siguiente línea
       bits += pitch;
       bitsAux += pitch;
    }
-   //FreeImage_Unload( imagenAux );
+   // se inicializan apuntadores para iniciar el barrido vertical
    imagenAux = FreeImage_Clone( imagen );
    bitsAux = (BYTE *)FreeImage_GetBits( imagenAux );
    bitsAux += ( 3 * width_ini );
@@ -116,6 +130,7 @@ void *BlurFunc2( void *arg ){
       pixelAuxDer = pixelAuxIz = bitsAux;
       kernelLimit = radio - 1;
       auxCount = 0; //inicializar en height_ini si se balancea carga en el eje y
+      // se mueve el apuntador izquierdo del kernel
       while( auxCount >= 0 && auxCount > kernelLimit ){
          sumRed += pixelAuxIz[FI_RGBA_RED];
          sumGreen += pixelAuxIz[FI_RGBA_GREEN];
@@ -127,6 +142,7 @@ void *BlurFunc2( void *arg ){
       pixelAuxDer += pitch;
       auxCount = 1; //inicializar en height_ini+1 si se balancea carga en el eje y
       kernelLimit = radio + 1;
+      // se mueve el apuntador derecho del kernel
       while( auxCount < height && auxCount < kernelLimit ){
          sumRed += pixelAuxDer[FI_RGBA_RED];
          sumGreen += pixelAuxDer[FI_RGBA_GREEN];
@@ -163,7 +179,7 @@ void *BlurFunc2( void *arg ){
          pixel[FI_RGBA_BLUE]=sumBlue/kernelCount;
          pixel += pitch;
       }
-      // next line
+      // siguiente linea
       bits += 3;
       bitsAux += 3;
    }
@@ -172,10 +188,14 @@ void *BlurFunc2( void *arg ){
 
 
 int main( int argc, char *argv[] ){
+
+   // verificamos si se recibieron todos los argumentos
    if( argc != 5 ){
       printf( "Please provide all arguments: blur-effect sourceImage outputImage kernelSize coreNum");
       exit( 1 );
    }
+
+   // inicialización de la librería FreeImage
    FreeImage_Initialise( FALSE );
 
    FREE_IMAGE_FORMAT formato = FreeImage_GetFileType( argv[1], 0 );
@@ -183,21 +203,23 @@ int main( int argc, char *argv[] ){
       FreeImage_SetOutputMessage( FreeImageErrorHandler );
    }
 
+   // Se carga la imagen a un mapa de bits
    FIBITMAP* imagen = FreeImage_Load( formato, argv[1], 0 );
    if( !imagen ){
       FreeImage_SetOutputMessage( FreeImageErrorHandler );
    }
 
-   unsigned total_width  = FreeImage_GetWidth(imagen);
-   unsigned total_height = FreeImage_GetHeight(imagen);
+   unsigned total_width  = FreeImage_GetWidth(imagen); // ancho de la imagen
+   unsigned total_height = FreeImage_GetHeight(imagen); // alto de la imagen
    int hilos = atoi(argv[4]);
    int *retval;
 
-   int block_width = total_width / hilos;
+   int block_width = total_width / hilos; // balanceo de carga blockwise (se divide la img por columnas)
    pthread_t thread[hilos];
-   FIBITMAP *imagenAux = FreeImage_Clone( imagen );
+   FIBITMAP *imagenAux = FreeImage_Clone( imagen ); // se clona la imagen a otro bitmap para sacar de ella los valores del kernel
    struct Blur_Params *params = malloc( sizeof( struct Blur_Params ) * hilos );
 
+   // se lanzan los hilos con posición inicial y final en el eje x para dividir la imagen
    for( int i = 0; i < hilos - 1; i++ ){
       params[i].img = imagen;
       params[i].imgAux = imagenAux;
@@ -206,24 +228,26 @@ int main( int argc, char *argv[] ){
       params[i].width = block_width * (i+1);
       pthread_create( &thread[i], NULL, (void *)BlurFunc2, (void *)&params[i] );
    }
+
+   // se lanza el último hilo que incluye el resto de columnas (la división no da entera siempre)
    params[hilos - 1].img = imagen;
    params[hilos - 1].imgAux = imagenAux;
    params[hilos - 1].kernel = atoi(argv[3]);
    params[hilos - 1].ini = block_width * ( hilos - 1 );
-   //params[hilos-1].width = ( block_width * hilos ) + total_width % hilos;
    params[hilos - 1].width = total_width;
-
    pthread_create( &thread[hilos - 1], NULL, (void *)BlurFunc2, (void *)&params[hilos - 1] );
 
+   // se espera a que todos los hilos terminen
    for( int i = 0; i < hilos; i++ ){
       pthread_join( thread[i], NULL );
    }
 
 
-
-   if ( FreeImage_Save( FIF_BMP, imagen, argv[2], 0 ) ) {     // bitmap successfully saved!
+   // se guardan los cambios en una nueva imagen
+   if ( FreeImage_Save( FIF_BMP, imagen, argv[2], 0 ) ) {
    }
 
+   // liberar memoria y desinicializar la librería
    free( params );
    FreeImage_Unload( imagen );
    FreeImage_Unload( imagenAux );
