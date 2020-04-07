@@ -112,7 +112,7 @@ void *BlurFunc2( void *arg ){
 
       //Se calcula el blur para el primer pixel (borde superior)
       pixelAuxDer = pixelAuxIz = bitsAux;
-      kernelLimit = width_ini - radio - 1;
+      kernelLimit = radio - 1;
       auxCount = 0; //inicializar en height_ini si se balancea carga en el eje y
       while( auxCount >= 0 && auxCount > kernelLimit ){
          sumRed += pixelAuxIz[FI_RGBA_RED];
