@@ -59,7 +59,7 @@ void *BlurFunc2( void *arg ){
       pixelAuxDer += 3;
       auxCount = width_ini + 1;
       kernelLimit = width_ini + radio + 1;
-      while( auxCount <= total_width && auxCount < kernelLimit ){
+      while( auxCount < total_width && auxCount < kernelLimit ){
          sumRed += pixelAuxDer[FI_RGBA_RED];
          sumGreen += pixelAuxDer[FI_RGBA_GREEN];
          sumBlue += pixelAuxDer[FI_RGBA_BLUE];
@@ -125,7 +125,7 @@ void *BlurFunc2( void *arg ){
       pixelAuxDer += pitch;
       auxCount = 1; //inicializar en height_ini+1 si se balancea carga en el eje y
       kernelLimit = radio + 1;
-      while( auxCount <= height && auxCount < kernelLimit ){
+      while( auxCount < height && auxCount < kernelLimit ){
          sumRed += pixelAuxDer[FI_RGBA_RED];
          sumGreen += pixelAuxDer[FI_RGBA_GREEN];
          sumBlue += pixelAuxDer[FI_RGBA_BLUE];
